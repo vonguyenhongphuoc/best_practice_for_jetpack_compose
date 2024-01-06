@@ -1,0 +1,65 @@
+package com.devhp.bestpracticecomposesample
+
+import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableStateOf
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.launch
+
+class CounterViewModel : ViewModel() {
+    private val _screenState =
+        mutableStateOf(MainScreenState(inputValue = "", displayResult = "Total is 0.0"))
+    val screenState: State<MainScreenState> = _screenState
+
+    private val _uiEventFlow = MutableSharedFlow<UIEvent>()
+    val uiEventFlow = _uiEventFlow.asSharedFlow()
+
+    private var total = 0.0
+
+    private fun addToTotal() {
+        total += _screenState.value.inputValue.toDouble()
+        _screenState.value =
+            _screenState.value.copy(displayResult = "Total is $total", isCountButtonVisible = false, inputValue = "")
+    }
+
+    private fun resetTotal() {
+        total = 0.0
+        _screenState.value = _screenState.value.copy(
+            displayResult = "Total is $total",
+            inputValue = "",
+            isCountButtonVisible = false
+        )
+    }
+
+    fun onEvent(event: CounterEvent) {
+        when (event) {
+            is CounterEvent.ValueEntered -> {
+                _screenState.value = _screenState.value.copy(
+                    inputValue = event.value,
+                    isCountButtonVisible = true
+                )
+            }
+
+            is CounterEvent.CountButtonClicked -> {
+                addToTotal()
+                viewModelScope.launch {
+                    _uiEventFlow.emit(
+                        UIEvent.ShowMessage(message = "Value added successfully")
+                    )
+                }
+            }
+
+            is CounterEvent.ResetButtonClicked -> {
+                resetTotal()
+                viewModelScope.launch {
+                    _uiEventFlow.emit(
+                        UIEvent.ShowMessage(message = "Value reset successfully")
+                    )
+                }
+            }
+        }
+    }
+
+}
